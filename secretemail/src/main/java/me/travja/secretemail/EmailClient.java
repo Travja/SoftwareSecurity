@@ -63,13 +63,7 @@ public class EmailClient {
             e.printStackTrace();
         }
 
-//        System.out.println("\n\n\n\n");
-//        String encrypted = Encryption.keyEncrypt("This is some data.", Encryption.getPrivateKey(new File("keys", email + ".private")));
-//        System.out.println(encrypted);
-//        String decrypted = Encryption.keyDecrypt(encrypted, Encryption.getPublicKey(new File("keys", email + ".pub")));
-//        System.out.println(decrypted);
     }
-
     private void initMenu() {
         menu = new Menu();
         menu.addOption(new Option("View Emails", () -> {
