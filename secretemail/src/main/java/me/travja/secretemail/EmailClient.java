@@ -15,6 +15,7 @@ import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 import javax.mail.search.FlagTerm;
 import java.io.*;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
@@ -93,7 +94,7 @@ public class EmailClient {
                     }
                 }))
                 .addOption(new Option("Send Emails", () -> {
-                    String to = getString("To: ");
+                    String to = getString("To: ").toLowerCase();
                     String subject = getString("Subject: ");
 
                     System.out.println("Please compose the email body. Save the file when finished.");
@@ -103,7 +104,7 @@ public class EmailClient {
                     System.out.println("\nComposition complete.\n");
                     System.out.println("Body is: " + rawText);
 
-                    if (Util.getBoolean("Encrypt this email? ")) {
+                    if (getBoolean("Encrypt this email? ")) {
                         String aesKey = UUID.randomUUID().toString();
                         File toKey = new File("keys", to + ".pub");
                         if (!toKey.exists()) {
@@ -115,7 +116,7 @@ public class EmailClient {
                                 Encryption.getPublicKey(toKey)) + ":::" + aes;
                     }
 
-                    if (Util.getBoolean("Sign this email? ")) {
+                    if (getBoolean("Sign this email? ")) {
                         String signature = Encryption.sign(rawText,
                                 Encryption.getPrivateKey(new File("keys", email + ".private")));
                         messageBody += "$$sig$$" + signature;

@@ -40,8 +40,10 @@ public class Email {
         if (from.contains("<"))
             from = from.substring(from.indexOf("<") + 1, from.indexOf(">"));
 
+        from = from.toLowerCase();
+
         String to = String.join(", ", Arrays.stream(msg.getRecipients(Message.RecipientType.TO))
-                .map(a -> a.toString()).collect(Collectors.toList()));
+                .map(a -> a.toString()).collect(Collectors.toList())).toLowerCase();
         String subject = msg.getSubject();
 
         Email email = new Email(to, from, subject, null);
