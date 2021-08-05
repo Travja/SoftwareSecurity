@@ -6,6 +6,7 @@ import me.travja.secretemail.models.Email;
 import me.travja.secretemail.models.Menu;
 import me.travja.secretemail.models.Option;
 import me.travja.secretemail.util.Encryption;
+import me.travja.secretemail.util.Util;
 
 import javax.mail.*;
 import javax.mail.internet.InternetAddress;
@@ -14,13 +15,11 @@ import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 import javax.mail.search.FlagTerm;
 import java.io.*;
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
-import static me.travja.secretemail.util.Util.getInt;
-import static me.travja.secretemail.util.Util.getString;
+import static me.travja.secretemail.util.Util.*;
 
 public class EmailClient {
 
@@ -78,7 +77,7 @@ public class EmailClient {
                         System.out.println("You have " + messages.length + " unread email" + (messages.length != 1 ? "s" : ""));
                         for (int i = messages.length - 1; i >= 0; i--) {
                             Message msg = messages[i];
-                            Email email = readEmail(msg);
+                            Email email = Email.from(msg, this.email);
                             System.out.println("\n\n -----=[ Email #" + (i + 1) + " ]=----- ");
                             System.out.println(email);
                             System.out.println("\n\n");
@@ -96,44 +95,40 @@ public class EmailClient {
                 .addOption(new Option("Send Emails", () -> {
                     String to = getString("To: ");
                     String subject = getString("Subject: ");
-                    StringBuilder body = new StringBuilder();
                     System.out.println("Please compose the email body. Save the file when finished.");
 
-                    File file = new File("email.txt");
-                    try {
-                        file.createNewFile();
-                        Process proc = Runtime.getRuntime().exec("notepad.exe " + file.getAbsolutePath());
-                        try {
-                            proc.waitFor();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                    String text = getInputFromNotepad("email.txt");
+
+                    System.out.println("\nComposition complete.\n");
+                    System.out.println("Body is: " + text);
+
+                    boolean encrypt = Util.getBoolean("Encrypt this email? ");
+                    boolean sign = Util.getBoolean("Sign this email? ");
+
+                    if (encrypt) {
+                        String aesKey = UUID.randomUUID().toString();
+                        File toKey = new File("keys", to + ".pub");
+                        if (!toKey.exists()) {
+                            System.err.println("No public key found for target email. Please add the key to the keys/ directory.");
+                            return;
                         }
-
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
-
-                        String input;
-                        while ((input = reader.readLine()) != null) {
-                            if (body.length() != 0)
-                                body.append("\n");
-                            body.append(input);
-                        }
-                        reader.close();
-
-
-                        System.out.println("\nComposition complete.\n");
-                        System.out.println("Body is: " + body);
-                    } catch (IOException e) {
-                        System.err.println("Could not get file input.");
-                        e.printStackTrace();
+                        String aes = Encryption.aesEncrypt(text, aesKey);
+                        text = "$$enc$$" + Encryption.keyEncrypt(aesKey, Encryption.getPublicKey(toKey)) +
+                                ":::" + aes;
                     }
-                    //TODO Ask if we want to encrypt/sign.
 
-                    boolean sent = sendEmail(to, subject, body.toString());
+                    if (sign) {
+                        String signature = Encryption.sign(text,
+                                Encryption.getPrivateKey(new File("keys", email + ".private")));
+                        text += "$$sig$$" + signature;
+                    }
+
+
+                    boolean sent = sendEmail(to, subject, text);
                     if (sent)
                         System.out.println("Message sent.");
                     else
                         System.out.println("Message failed to send.");
-
                 }))
                 .addOption(new Option("Refresh inbox", () -> {
                     try {
@@ -173,43 +168,6 @@ public class EmailClient {
 
         Message[] messages = inbox.search(new FlagTerm(new Flags(Flags.Flag.SEEN), false));
         System.out.println("You have " + messages.length + " unread email" + (messages.length != 1 ? "s" : ""));
-    }
-
-    private Email readEmail(Message message) throws MessagingException, IOException {
-        Message msg = message;
-        String from = msg.getFrom()[0].toString();
-        String to = String.join(", ", Arrays.stream(msg.getRecipients(Message.RecipientType.TO))
-                .map(a -> a.toString()).collect(Collectors.toList()));
-        String subject = msg.getSubject();
-
-        Email email = new Email(to, from, subject, null);
-
-        StringBuilder sb = new StringBuilder();
-        Object contents = msg.getContent();
-        if (contents instanceof MimeMultipart) {
-            for (int j = 0; j < ((MimeMultipart) contents).getCount(); j++) {
-                BodyPart body = ((MimeMultipart) contents).getBodyPart(j);
-                if (body.getContentType().startsWith("TEXT/PLAIN")) {
-                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(body.getInputStream()))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            sb.append(line + "\n");
-                        }
-                    }
-
-                    break;
-                } else
-                    continue;
-            }
-        }
-        if (sb.length() > 0) {
-            String body = sb.substring(0, sb.length() - 1);
-            //TODO Determine if this is encrypted/signed and decrypt appropriately.
-            email.setBody(body);
-        } else {
-            email.setBody(" [ NO TEXT BODY ] ");
-        }
-        return email;
     }
 
     public boolean sendEmail(String to, String subject, String body) {

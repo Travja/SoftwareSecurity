@@ -51,6 +51,13 @@ public class Encryption {
         return decoded;
     }
 
+    public static String sign(String data, Key key) {
+        String hashed = sha(data);
+        String encrypted = keyEncrypt(hashed, key);
+
+        return encrypted;
+    }
+
     public static String aesEncrypt(String data, String password) {
         try {
             SecretKeySpec key = convertPasswordToKey(password);
