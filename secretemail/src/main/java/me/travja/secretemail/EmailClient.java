@@ -95,40 +95,35 @@ public class EmailClient {
                 .addOption(new Option("Send Emails", () -> {
                     String to = getString("To: ");
                     String subject = getString("Subject: ");
-                    System.out.println("Please compose the email body. Save the file when finished.");
 
-                    String text = getInputFromNotepad("email.txt");
+                    System.out.println("Please compose the email body. Save the file when finished.");
+                    String rawText = getInputFromNotepad("email.txt");
+                    String messageBody = rawText;
 
                     System.out.println("\nComposition complete.\n");
-                    System.out.println("Body is: " + text);
+                    System.out.println("Body is: " + rawText);
 
-                    boolean encrypt = Util.getBoolean("Encrypt this email? ");
-                    boolean sign = Util.getBoolean("Sign this email? ");
-
-                    if (encrypt) {
+                    if (Util.getBoolean("Encrypt this email? ")) {
                         String aesKey = UUID.randomUUID().toString();
                         File toKey = new File("keys", to + ".pub");
                         if (!toKey.exists()) {
                             System.err.println("No public key found for target email. Please add the key to the keys/ directory.");
                             return;
                         }
-                        String aes = Encryption.aesEncrypt(text, aesKey);
-                        text = "$$enc$$" + Encryption.keyEncrypt(aesKey, Encryption.getPublicKey(toKey)) +
-                                ":::" + aes;
+                        String aes = Encryption.aesEncrypt(rawText, aesKey);
+                        messageBody = "$$enc$$" + Encryption.keyEncrypt(aesKey,
+                                Encryption.getPublicKey(toKey)) + ":::" + aes;
                     }
 
-                    if (sign) {
-                        String signature = Encryption.sign(text,
+                    if (Util.getBoolean("Sign this email? ")) {
+                        String signature = Encryption.sign(rawText,
                                 Encryption.getPrivateKey(new File("keys", email + ".private")));
-                        text += "$$sig$$" + signature;
+                        messageBody += "$$sig$$" + signature;
                     }
 
 
-                    boolean sent = sendEmail(to, subject, text);
-                    if (sent)
-                        System.out.println("Message sent.");
-                    else
-                        System.out.println("Message failed to send.");
+                    boolean sent = sendEmail(to, subject, messageBody);
+                    System.out.println(sent ? "Message sent." : "Message failed to send.");
                 }))
                 .addOption(new Option("Refresh inbox", () -> {
                     try {
