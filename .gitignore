@@ -35,3 +35,5 @@ build/
 **/keys/
 **/conf/
 **/dependency-reduced-pom.xml
+**/tokens/
+**/credentials.json
