@@ -6,7 +6,6 @@ import me.travja.secretemail.models.Email;
 import me.travja.secretemail.models.Menu;
 import me.travja.secretemail.models.Option;
 import me.travja.secretemail.util.Encryption;
-import me.travja.secretemail.util.Util;
 
 import javax.mail.*;
 import javax.mail.internet.InternetAddress;
@@ -15,7 +14,6 @@ import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 import javax.mail.search.FlagTerm;
 import java.io.*;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
@@ -26,13 +24,13 @@ public class EmailClient {
 
     @Getter
     private static EmailClient client;
-    private static Session imapSession = null;
-    private static Session smtpSession = null;
-    private int imapPort = 993, smtpPort = 465;
+    private static Session     imapSession = null;
+    private static Session     smtpSession = null;
+    private        int         imapPort    = 993, smtpPort = 465;
     private String email = "",
-            password = "",
-            imapHost = "imap.gmail.com",
-            smtpHost = "smtp.gmail.com";
+            password     = "",
+            imapHost     = "imap.gmail.com",
+            smtpHost     = "smtp.gmail.com";
 
     private Store store;
 
@@ -64,6 +62,7 @@ public class EmailClient {
         }
 
     }
+
     private void initMenu() {
         menu = new Menu();
         menu.addOption(new Option("View Emails", () -> {
@@ -71,8 +70,8 @@ public class EmailClient {
                         Message[] messages = inbox.search(new FlagTerm(new Flags(Flags.Flag.SEEN), false));
                         System.out.println("You have " + messages.length + " unread email" + (messages.length != 1 ? "s" : ""));
                         for (int i = messages.length - 1; i >= 0; i--) {
-                            Message msg = messages[i];
-                            Email email = Email.from(msg, this.email);
+                            Message msg   = messages[i];
+                            Email   email = Email.from(msg, this.email);
                             System.out.println("\n\n -----=[ Email #" + (i + 1) + " ]=----- ");
                             System.out.println(email);
                             System.out.println("\n\n");
@@ -88,11 +87,11 @@ public class EmailClient {
                     }
                 }))
                 .addOption(new Option("Send Emails", () -> {
-                    String to = getString("To: ").toLowerCase();
+                    String to      = getString("To: ").toLowerCase();
                     String subject = getString("Subject: ");
 
                     System.out.println("Please compose the email body. Save the file when finished.");
-                    String rawText = getInputFromNotepad("email.txt");
+                    String rawText     = getInputFromNotepad("email.txt");
                     String messageBody = rawText;
 
                     System.out.println("\nComposition complete.\n");
@@ -100,7 +99,7 @@ public class EmailClient {
 
                     if (getBoolean("Encrypt this email? ")) {
                         String aesKey = UUID.randomUUID().toString();
-                        File toKey = new File("keys", to + ".pub");
+                        File   toKey  = new File("keys", to + ".pub");
                         if (!toKey.exists()) {
                             System.err.println("No public key found for target email. Please add the key to the keys/ directory.");
                             return;
