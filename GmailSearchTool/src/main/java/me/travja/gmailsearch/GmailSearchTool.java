@@ -14,8 +14,6 @@ import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.GmailScopes;
 import com.google.api.services.gmail.model.ListMessagesResponse;
 import com.google.api.services.gmail.model.Message;
-import com.google.api.services.gmail.model.MessagePart;
-import com.google.api.services.gmail.model.MessagePartHeader;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -39,6 +37,11 @@ public class GmailSearchTool {
     );
 
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
+    public static        Gmail  gmailService;
+
+    public static void main(String... args) throws IOException, GeneralSecurityException {
+        new GmailSearchTool().run();
+    }
 
     /**
      * Creates an authorized Credential object.
@@ -47,7 +50,7 @@ public class GmailSearchTool {
      * @return An authorized Credential object.
      * @throws IOException If the credentials.json file cannot be found.
      */
-    private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT, String label) throws IOException {
+    private static Credential loadCredentials(final NetHttpTransport HTTP_TRANSPORT, String label) throws IOException {
         // Load client secrets.
         InputStream in = GmailSearchTool.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
         if (in == null) {
@@ -71,24 +74,28 @@ public class GmailSearchTool {
         }
     }
 
-    public static void main(String... args) throws IOException, GeneralSecurityException {
+    public void setup() throws IOException, GeneralSecurityException {
         // Build a new authorized API client service.
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
-        String     id   = Util.getString("Enter account id: ");
-        String     user = "me";
+        String     id = Util.getString("Enter account id: ");
         Credential credentials;
         do {
-            credentials = getCredentials(HTTP_TRANSPORT, id);
+            credentials = loadCredentials(HTTP_TRANSPORT, id);
         } while (credentials == null);
 
-        Gmail service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, credentials)
+        gmailService = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, credentials)
                 .setApplicationName(APPLICATION_NAME)
                 .build();
+    }
 
+    public void run() throws IOException, GeneralSecurityException {
+        setup();
+
+        String user   = "me";
         String search = Util.getString("Enter a search string: ");
 
-        ListMessagesResponse listResponse = service.users().messages().list(user).setQ(search).execute();
+        ListMessagesResponse listResponse = gmailService.users().messages().list(user).setQ(search).execute();
         List<Message>        messages     = listResponse.getMessages();
 
         if (messages == null || messages.isEmpty()) {
@@ -98,27 +105,12 @@ public class GmailSearchTool {
             for (int i = 0; i < messages.size(); i++) {
                 Message message = messages.get(i);
                 System.out.printf(" -----=[ Message #%d ]=----- \n", i + 1);
-                Message msg = service.users().messages().get(user, message.getId()).execute();
-                if (msg.getPayload() != null) {
-                    List<MessagePartHeader> headers = msg.getPayload().getHeaders();
-                    String                  subject = "";
-                    String                  from    = "";
-                    for (MessagePartHeader header : headers) {
-                        if (header.getName().equals("Subject"))
-                            subject = header.getValue();
-                        else if (header.getName().equals("From"))
-                            from = header.getValue();
-                    }
-                    System.out.printf("Subject: %s\nFrom: %s\n", subject, from);
-                    String body = "";
-                    for (MessagePart part : msg.getPayload().getParts()) {
-                        if (part.getMimeType().startsWith("text/plain"))
-                            body += new String(part.getBody().decodeData());
-                    }
-                    System.out.println(body);
-                } else {
-                    System.out.println("\t! No payload");
+                Message msg   = gmailService.users().messages().get(user, message.getId()).execute();
+                Email   email = Email.from(msg);
+                if(!search.trim().isEmpty()) {
+                    email.filterBy(search);
                 }
+                System.out.println(email);
                 System.out.println(" -------------------------- \n\n");
             }
         }
